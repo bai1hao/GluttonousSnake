@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>snake</title>
+    <style>
+        * {
+            padding: 0;
+            margin: 0;
+            box-sizing: border-box;
+        }
+        body {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        canvas {
+            box-shadow: 0 0 10px #666;
+        }
+        .game {
+            position: relative;
+        }
+        .start {
+            position: absolute;
+            left:50%;
+            top:50%;
+            transform: translate(-50%,-50%);
+            background: limegreen;
+            cursor: pointer;
+            padding:10px 15px;
+            color:white;
+        }
+    </style>
+</head>
+<body>
+<div class="game">
+    <div class="start">
+        开始游戏
+    </div>
+    <canvas width="500px" height="500px"></canvas>
+</div>
+<script>
+	//画布对象
+    let canvas = document.querySelector("canvas");
+    let ctx = canvas.getContext('2d');
+    let timer;
+	//方块的类
+    class Rect {
+        constructor(x,y,width,height,color) {
+            this.x = x;
+            this.y = y;
+            this.width = width;
+            this.height = height;
+            this.color = color;
+        }
+        draw(){
+            ctx.beginPath();
+            ctx.fillStyle=this.color;
+            ctx.strokeRect(this.x,this.y,this.width,this.height);
+            ctx.fillRect(this.x,this.y,this.width,this.height);
+        }
+    }
+	//蛇的类
+    class Snake  {
+        constructor() {
+            this.head = new Rect(canvas.width/2-10,canvas.height/2-10,20,20,"red")
+            this.body = new Array(0);
+            this.isEat = false;
+            this.direction = "right"
+        }
+        createBody(length){
+            for(let i = 0;i < length;i++){
+                let bodyCube = new Rect(this.head.x-this.head.width*(i+1),this.head.y,this.head.width,this.head.height,"gray");
+                this.body.push(bodyCube);
+            }
+        }
+        clear(){
+            ctx.clearRect(0,0,canvas.width,canvas.height)
+        }
+
+        move(){
+            let rect = new Rect(this.head.x,this.head.y,this.head.width,this.head.height,"gray")
+            this.body.splice(0,0,rect);
+            if(this.isEat===false){
+                this.body.pop();
+            }else {
+                this.isEat = false;
+            }
+			//每次运行move()走一格
+            switch(this.direction){
+                case "up":
+                    this.head.y -= this.head.height;
+                    break;
+                case "down":
+                    this.head.y += this.head.height;
+                    break;
+                case "left":
+                    this.head.x -= this.head.width;
+                    break;
+                case "right":
+                    this.head.x += this.head.width;
+                    break;
+            }
+			//头撞身体
+            for(let i = 0;i < this.body.length;i++){
+                if(this.head.x===this.body[i].x&&this.head.y===this.body[i].y){
+					//清除动画
+                    clearInterval(timer);
+                    alert("Game Over!!")
+					//打开开始游戏的按钮
+					document.querySelector(".start").style.display = "unset";
+                }
+            }
+			//碰撞检测
+            if(this.head.x<0||this.head.x>canvas.width-this.head.width||this.head.y<0||this.head.y>canvas.height-this.head.height){
+                //清除动画
+				clearInterval(timer);
+                alert("Game Over!!")
+				//打开开始游戏的按钮
+				document.querySelector(".start").style.display = "unset";
+            }
+        }
+		//控制
+        control(){
+            let that  = this;
+            document.addEventListener("keydown",function (e){
+                switch (e.key){
+                    case "ArrowUp":
+						//三元运算符禁止回头自杀
+                        that.direction = that.direction=="down"?"down":"up";
+                        break;
+                    case "ArrowDown":
+                        that.direction = that.direction=="up"?"up":"down";
+                        break;
+                    case "ArrowLeft":
+                        that.direction = that.direction=="right"?"right":"left";
+                        break;
+                    case "ArrowRight":
+                        that.direction = that.direction=="left"?"left":"right";
+                }
+            })
+        }
+    }
+	//游戏类
+    class Game {
+        constructor(){
+            this.player = undefined;
+            this.isHit = false;
+        }
+		//动画
+        animation() {
+            let that = this;
+            this.giveFood();
+            console.log(this.food);
+            timer = setInterval(function (){
+                that.player.clear();
+				//绘制食物
+                that.food.draw();
+				//控制每帧移动
+                that.player.move();
+                for(let i=0;i<that.player.body.length;i++){
+                    that.player.body[i].draw();
+                }
+                that.player.head.draw();
+                that.ifHit();
+                console.log(that.isHit);
+                if(that.isHit){
+                    that.player.isEat=true;
+                    that.giveFood();
+                }
+            },200)
+        }
+		//放置食物
+        giveFood (){
+            let isInSnake = true;
+            let x;
+            let y;
+            while(isInSnake){
+                x = Math.round((Math.random()*(canvas.width-this.player.head.width)/this.player.head.width))*this.player.head.width;
+                y = Math.round((Math.random()*(canvas.height-this.player.head.height)/this.player.head.height))*this.player.head.height;
+                if(x===this.player.head.x&&y===this.player.head.y){
+                    isInSnake = true;
+                    continue;
+                }else {
+                    isInSnake = false;
+                }
+                for(let i = 0;i < this.player.body.length;i++){
+                    if(x===this.player.body[i].x&&y===this.player.body[i].y){
+                        isInSnake = true;
+                        break;
+                    }else {
+                        isInSnake = false;
+                    }
+                }
+            }
+            this.food = new Rect(x,y,this.player.head.width,this.player.head.height,"orange")
+
+        }
+        ifHit(){
+            let snake = this.player.head;
+            let food = this.food;
+            this.isHit = snake.x === food.x && snake.y === food.y;
+        }
+        start(){
+            let snake = new Snake();
+            this.player = snake;
+            this.giveFood();
+            snake.createBody(3);
+            this.animation(snake);
+            snake.control();
+        }
+    }
+	//游戏对象
+    let game = new Game();
+	//按钮点击开始游戏
+    document.querySelector(".start").addEventListener("click",function (){
+        game.start();
+        this.style.display = "none";
+    })
+
+</script>
+
+</body>
+</html>
